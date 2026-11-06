@@ -1,0 +1,144 @@
+version: '3.8'
+
+networks:
+  northwind_network:
+    driver: bridge
+
+volumes:
+  northwind_grafana_data:
+
+services:
+
+  northwind_sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: northwind_sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD}"
+      MSSQL_PID: "Developer"
+    ports:
+      - "22433:1433"
+    networks:
+      - northwind_network
+
+  northwind_postgres:
+    image: postgres:15
+    container_name: northwind_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: northwind
+    ports:
+      - "25432:5432"
+    networks:
+      - northwind_network
+
+  northwind_zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: northwind_zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - northwind_network
+
+  northwind_kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: northwind_kafka
+    depends_on:
+      - northwind_zookeeper
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: northwind_zookeeper:2181
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://northwind_kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - northwind_network
+
+  northwind_clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: northwind_clickhouse
+    environment:
+      CLICKHOUSE_PASSWORD: "${CLICKHOUSE_PASSWORD}"
+      CLICKHOUSE_USER: default
+    ports:
+      - "28123:8123"
+      - "29000:9000"
+    volumes:
+      - ./clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./clickhouse/odbc.ini:/etc/odbc.ini
+      - ./clickhouse/odbcinst.ini:/etc/odbcinst.ini
+    networks:
+      - northwind_network
+    restart: unless-stopped
+    depends_on:
+      - northwind_postgres
+      - northwind_sqlserver
+
+  grafana:
+    image: grafana/grafana:13.2.3
+    container_name: northwind_grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}
+    ports:
+      - "23000:3000"
+    networks:
+      - northwind_network
+    volumes:
+      - northwind_grafana_data:/var/lib/grafana
+    restart: unless-stopped
+    depends_on:
+      - northwind_clickhouse
+
+  northwind_debezium:
+    image: debezium/connect:2.5
+    container_name: northwind_debezium
+    depends_on:
+      - northwind_kafka
+    ports:
+      - "28083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: northwind_kafka:9092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: northwind_connect_configs
+      OFFSET_STORAGE_TOPIC: northwind_connect_offsets
+      STATUS_STORAGE_TOPIC: northwind_connect_statuses
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+    networks:
+      - northwind_network
+
+  northwind_airflow:
+    image: apache/airflow:3.3.2
+    container_name: northwind_airflow
+    user: "1000:0"
+    command: standalone
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      AIRFLOW_HOME: /opt/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__PARALLELISM: "2"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__PLUGINS_FOLDER: /opt/airflow/plugins
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "${AIRFLOW_DB_URL}"
+      CLICKHOUSE_PASSWORD: "${CLICKHOUSE_PASSWORD}"
+      AIRFLOW__LOGGING__BASE_LOG_FOLDER: /opt/airflow/logs
+      AIRFLOW__LOGGING__DAG_PROCESSOR_CHILD_PROCESS_LOG_DIRECTORY: /opt/airflow/logs/dag_processor
+    volumes:
+      - ./airflow/airflow_home:/opt/airflow
+      - ./airflow/dags:/opt/airflow/dags
+    networks:
+      - northwind_network

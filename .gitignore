@@ -1,0 +1,31 @@
+# Local credentials and environment files
+.env
+.env.*
+!.env.example
+
+# Local Docker configuration containing real credentials
+docker-compose.yml
+docker-compose.yml.backup-*
+
+# Airflow runtime data and metadata
+airflow/airflow_home/
+airflow/logs/
+**/__pycache__/
+*.pyc
+*.db
+*.db-*
+
+# Database backups and local archives
+*.bak
+*.tar.gz
+*.zip
+*:Zone.Identifier
+
+# Local connector configurations - review before publishing
+northwind-connector*.json
+
+# Temporary and backup files
+*.log
+*.backup-*
+grafana-container-before-upgrade.json
+grafana-container-before-upgrade.json
