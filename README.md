@@ -4,9 +4,9 @@ An end-to-end data engineering project built around the Northwind dataset, demon
 
 ## Overview
 
-This project uses Northwind data to explore a data engineering workflow with SQL Server, Apache Kafka, Debezium, PostgreSQL, ClickHouse, Apache Spark, Apache Airflow, and Grafana.
+This project demonstrates a data engineering workflow using Microsoft SQL Server, Debezium, Apache Kafka, PostgreSQL, Apache Spark, ClickHouse, Apache Airflow, and Grafana.
 
-The project includes data processing scripts, a ClickHouse data pipeline, an Airflow DAG, and Grafana dashboards for data visualization and reporting.
+It includes a CDC-based data ingestion pipeline, Python and Spark processing scripts, analytical SQL queries, Grafana dashboards, and an Airflow DAG for monitoring ClickHouse connectivity.
 
 ## Architecture
 
@@ -14,14 +14,14 @@ The project uses the following components:
 
 - **SQL Server** — Source database
 - **Debezium** — Change Data Capture (CDC)
-- **Apache Kafka** — Event streaming
-- **Apache Spark** — Data processing
+- **Apache Kafka** — Event streaming and message handling
+- **Apache Spark** — Data processing and transformation
 - **PostgreSQL** — Relational data storage
-- **ClickHouse** — Analytical data storage
-- **Apache Airflow** — Workflow orchestration
+- **ClickHouse** — Analytical data storage and querying
+- **Apache Airflow** — Workflow scheduling and monitoring
 - **Grafana** — Data visualization and dashboards
 
-The CDC workflow captures changes from SQL Server and publishes them to Kafka through Debezium. Python and Spark scripts support data processing and loading into the target databases. Grafana connects to ClickHouse for analytical dashboards, while Airflow provides workflow orchestration and monitoring.
+The CDC workflow captures changes from SQL Server and publishes them to Kafka through Debezium. Python and Spark scripts support data processing and loading into PostgreSQL and ClickHouse. Grafana connects to ClickHouse to visualize analytical results, while Airflow includes a DAG for checking ClickHouse connectivity.
 
 ## Services and Ports
 
@@ -47,15 +47,24 @@ The CDC workflow captures changes from SQL Server and publishes them to Kafka th
 - Apache Airflow
 - Grafana
 - Python
+- SQL
 
 ## Project Structure
 
 ```text
 northwind_export/
 ├── airflow/
-│   ├── dags/
-│   │   └── northwind_clickhouse_check.py
-│   └── airflow_home/
+│   └── dags/
+│       └── northwind_clickhouse_check.py
+├── grafana/
+│   └── dashboards/
+│       ├── sales-overview.json
+│       ├── product-analysis.json
+│       └── geographical-sales-analysis.json
+├── sql/
+│   ├── sales-overview/
+│   ├── product-analysis/
+│   └── geography/
 ├── docker-compose.example.yml
 ├── .gitignore
 ├── kafka_to_clickhouse.py
@@ -65,6 +74,52 @@ northwind_export/
 ```
 
 Runtime data, logs, database backups, local configuration files, and credentials are excluded from version control.
+
+## Grafana Dashboards
+
+The project includes three Grafana dashboards:
+
+### 1. Sales Overview
+Provides an overview of sales performance through key metrics and visualizations, including:
+
+- Total Revenue
+- Average Order Value
+- Total Orders
+- Units Sold
+- Monthly Order Volume
+- Monthly Sales Trend
+- Top Products by Revenue
+
+### 2. Product Analysis
+Focuses on product-level performance, including:
+
+- Product Details
+- Total Products
+- Total Revenue
+- Total Units Sold
+- Top 10 Products by Revenue
+- Top 10 Products by Units Sold
+
+### 3. Geographical Sales Analysis
+Provides geographical insights into Northwind sales data, including:
+
+- Countries Served
+- Total Orders
+- Customers by Country
+- Revenue by Country
+- Sales by Country
+
+Dashboard definitions are available in `grafana/dashboards/`. To use them, configure a ClickHouse data source in Grafana and import the corresponding JSON files.
+
+## SQL Queries
+
+The SQL scripts used by the dashboards are organized into three directories:
+
+- `sql/sales-overview/` — Queries for sales KPIs, order volume, revenue, and sales trends.
+- `sql/product-analysis/` — Queries for product details, product metrics, and top-performing products.
+- `sql/geography/` — Queries for geographical sales, revenue, orders, customers, and countries served.
+
+These scripts provide the SQL logic behind the dashboard panels and can also be reviewed and executed independently.
 
 ## Configuration
 
@@ -118,4 +173,5 @@ After the services are running:
 - The example Compose file is intended for reference and public sharing.
 - Local credentials and runtime data should remain outside version control.
 - The Airflow metadata database is separate from the Northwind analytical databases.
-- Grafana dashboards use ClickHouse as an analytical data source.
+- Grafana dashboards use ClickHouse as their analytical data source.
+- Dashboard JSON files can be imported into Grafana after configuring the required data source.
