@@ -1,27 +1,41 @@
 # Northwind Data Engineering Project
 
-An end-to-end data engineering project built around the Northwind dataset, demonstrating data ingestion, processing, storage, orchestration, and visualization using a Docker-based environment.
+An end-to-end data engineering project built around the Northwind dataset, demonstrating data ingestion, processing, storage, workflow orchestration, and visualization using a Docker-based environment.
 
 ## Overview
 
-This project demonstrates a data engineering workflow using Microsoft SQL Server, Debezium, Apache Kafka, PostgreSQL, Apache Spark, ClickHouse, Apache Airflow, and Grafana.
+This project demonstrates a data engineering workflow using Microsoft SQL Server, Debezium, Apache Kafka, Apache Spark, PostgreSQL, ClickHouse, Apache Airflow, and Grafana.
 
-It includes a CDC-based data ingestion pipeline, Python and Spark processing scripts, analytical SQL queries, Grafana dashboards, and an Airflow DAG for monitoring ClickHouse connectivity.
+The project includes Change Data Capture (CDC), Kafka event consumption, Python and Spark-based data processing, relational and analytical data storage, Airflow DAG execution, and interactive Grafana dashboards.
 
-## Architecture
+## Architecture & Technologies
 
-The project uses the following components:
+- **SQL Server:** Source database for operational Northwind data.
+- **Debezium & CDC:** Captures data changes from SQL Server and publishes change events to Kafka.
+- **Apache Kafka:** Handles streaming and transferring CDC events.
+- **Apache Spark:** Processes and transforms relational data before loading it into PostgreSQL.
+- **PostgreSQL:** Stores Spark-processed relational data and Airflow metadata in separate databases.
+- **Python Kafka Consumer:** Consumes Kafka events and loads data into ClickHouse.
+- **ClickHouse:** Analytical database used to store data for reporting and visualization.
+- **Apache Airflow:** Executes and monitors DAGs, including ClickHouse connectivity checks. Uses PostgreSQL to store workflow metadata.
+- **Grafana:** Connects to ClickHouse and provides interactive dashboards for data analysis and visualization.
+- **Docker & Docker Compose:** Containerizes and manages the project services and their dependencies.
 
-- **SQL Server** — Source database
-- **Debezium** — Change Data Capture (CDC)
-- **Apache Kafka** — Event streaming and message handling
-- **Apache Spark** — Data processing and transformation
-- **PostgreSQL** — Relational data storage
-- **ClickHouse** — Analytical data storage and querying
-- **Apache Airflow** — Workflow scheduling and monitoring
-- **Grafana** — Data visualization and dashboards
+## Data Flow
 
-The CDC workflow captures changes from SQL Server and publishes them to Kafka through Debezium. Python and Spark scripts support data processing and loading into PostgreSQL and ClickHouse. Grafana connects to ClickHouse to visualize analytical results, while Airflow includes a DAG for checking ClickHouse connectivity.
+### 1. Relational Data Processing & Workflow Orchestration
+
+SQL Server → Debezium (CDC) → Apache Kafka → Apache Spark → PostgreSQL
+
+Apache Airflow executes and monitors DAGs, using PostgreSQL to store workflow metadata.
+
+**PostgreSQL Databases:**
+- `northwind`: Stores relational data processed by Apache Spark.
+- `airflow`: Stores Airflow metadata, including DAG and task execution information.
+
+### 2. Analytical Data Pipeline
+
+SQL Server → Debezium (CDC) → Apache Kafka → Python Kafka Consumer → ClickHouse → Grafana
 
 ## Services and Ports
 
@@ -35,19 +49,6 @@ The CDC workflow captures changes from SQL Server and publishes them to Kafka th
 | Kafka | 29092 |
 | PostgreSQL | 25432 |
 | SQL Server | 22433 |
-
-## Technologies
-
-- Docker and Docker Compose
-- Microsoft SQL Server
-- Apache Kafka and Debezium
-- Apache Spark
-- PostgreSQL
-- ClickHouse
-- Apache Airflow
-- Grafana
-- Python
-- SQL
 
 ## Project Structure
 
@@ -73,59 +74,48 @@ northwind_export/
 └── test_kafka.py
 ```
 
-Runtime data, logs, database backups, local configuration files, and credentials are excluded from version control.
-
 ## Grafana Dashboards
 
-The project includes three Grafana dashboards:
+The project includes three dashboards:
 
 ### 1. Sales Overview
-Provides an overview of sales performance through key metrics and visualizations, including:
+
+Provides an overview of sales performance through key metrics and visualizations:
 
 - Total Revenue
 - Average Order Value
-- Total Orders
 - Units Sold
 - Monthly Order Volume
 - Monthly Sales Trend
-- Top Products by Revenue
 
 ### 2. Product Analysis
-Focuses on product-level performance, including:
 
-- Product Details
-- Total Products
-- Total Revenue
-- Total Units Sold
-- Top 10 Products by Revenue
+Focuses on product-level performance and includes:
+
 - Top 10 Products by Units Sold
+- Top 10 Products by Revenue
+- Product sales performance
 
 ### 3. Geographical Sales Analysis
-Provides geographical insights into Northwind sales data, including:
+
+Provides insights into geographical sales distribution, including:
 
 - Countries Served
-- Total Orders
-- Customers by Country
+- Total Orders by Country
 - Revenue by Country
-- Sales by Country
-
-Dashboard definitions are available in `grafana/dashboards/`. To use them, configure a ClickHouse data source in Grafana and import the corresponding JSON files.
+- Customer Distribution by Country
 
 ## SQL Queries
 
-The SQL scripts used by the dashboards are organized into three directories:
+The SQL directory contains analytical queries used by Grafana dashboards:
 
-- `sql/sales-overview/` — Queries for sales KPIs, order volume, revenue, and sales trends.
-- `sql/product-analysis/` — Queries for product details, product metrics, and top-performing products.
-- `sql/geography/` — Queries for geographical sales, revenue, orders, customers, and countries served.
-
-These scripts provide the SQL logic behind the dashboard panels and can also be reviewed and executed independently.
+- `sales-overview/`: Queries for sales KPIs and monthly trends.
+- `product-analysis/`: Queries for product performance and top-selling products.
+- `geography/`: Queries for geographical sales analysis.
 
 ## Configuration
 
-The example Compose file uses environment variables for sensitive configuration.
-
-Required variables:
+The project uses environment variables for sensitive credentials and connection settings.
 
 | Variable | Description |
 |---|---|
@@ -135,17 +125,13 @@ Required variables:
 | `GF_SECURITY_ADMIN_PASSWORD` | Grafana administrator password |
 | `AIRFLOW_DB_URL` | SQLAlchemy connection URL for the Airflow metadata database |
 
-Set these variables in the shell before starting the services. Do not commit real passwords or local configuration containing credentials.
+The `AIRFLOW_DB_URL` must point to the `airflow` database on the PostgreSQL service.
 
-The `AIRFLOW_DB_URL` value must point to the Airflow metadata database and use the connection details configured for that database.
+Sensitive credentials, local configuration files, and runtime data are excluded from version control.
 
 ## Running the Project
 
-Requirements:
-
-- Docker Desktop with WSL 2 integration, or a Linux Docker environment
-- Docker Compose
-- Required environment variables configured
+Make sure Docker and Docker Compose are installed and the required environment variables are configured.
 
 Start the services:
 
@@ -153,7 +139,7 @@ Start the services:
 docker-compose -f docker-compose.example.yml up -d
 ```
 
-Check the service status:
+Check service status:
 
 ```bash
 docker-compose -f docker-compose.example.yml ps
@@ -161,17 +147,18 @@ docker-compose -f docker-compose.example.yml ps
 
 ## Accessing the Services
 
-After the services are running:
-
-- Grafana: http://localhost:23000
-- Airflow: http://localhost:8080
-- ClickHouse HTTP interface: http://localhost:28123
-- Debezium REST API: http://localhost:28083
+| Service | URL |
+|---|---|
+| Grafana | http://localhost:23000 |
+| Apache Airflow | http://localhost:8080 |
+| ClickHouse HTTP | http://localhost:28123 |
+| Debezium | http://localhost:28083 |
 
 ## Notes
 
-- The example Compose file is intended for reference and public sharing.
-- Local credentials and runtime data should remain outside version control.
-- The Airflow metadata database is separate from the Northwind analytical databases.
+- `docker-compose.example.yml` is provided as an example Compose configuration.
+- Sensitive credentials, runtime data, logs, backups, and local configuration files are excluded from version control.
+- PostgreSQL is used for both Spark-processed relational data and Airflow metadata, stored in separate databases.
+- The current Airflow DAG checks ClickHouse connectivity and can be triggered through the Airflow interface. It does not orchestrate the entire end-to-end data pipeline.
 - Grafana dashboards use ClickHouse as their analytical data source.
-- Dashboard JSON files can be imported into Grafana after configuring the required data source.
+- Docker Compose manages the project services and their dependencies.
